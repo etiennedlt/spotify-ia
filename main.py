@@ -34,7 +34,7 @@ while True:
         with microphone as source:
             print("\nJ'écoute...")
             # Temps d'écoute étendu à 10 secondes pour ne pas être coupé
-            audio = recognizer.listen(source, timeout=None, phrase_time_limit=10)
+            audio = recognizer.listen(source, timeout=None, phrase_time_limit=20)
 
         texte = recognizer.recognize_google(audio, language="fr-FR").lower()
         print(f"Vous avez dit : {texte}")
@@ -45,7 +45,7 @@ while True:
             commande = texte.replace("coucou spotify", "").replace("coupe spotify", "").strip()
 
             # CAS 1 : Ajouter à la FILE D'ATTENTE (recherche globale sur tout Spotify, tolérante aux approximations)
-            if "file" in commande or "fail" in commande:
+            if "file" in commande or "fail" or "fil" in commande:
                 morceau_cherche = (commande
                                    .replace("file", "")
                                    .replace("fail", "")
@@ -54,31 +54,35 @@ while True:
                                    .replace("à", "")
                                    .strip())
 
-                print(f"Recherche globale sur Spotify pour la file d'attente : '{morceau_cherche}'")
+                # On vérifie qu'un morceau a bien été demandé
+                if morceau_cherche:
+                    print(f"Recherche globale sur Spotify pour la file d'attente : '{morceau_cherche}'")
 
-                resultats = sp.search(q=morceau_cherche, type='track', limit=5)
-                tracks = resultats['tracks']['items']
+                    resultats = sp.search(q=morceau_cherche, type='track', limit=5)
+                    tracks = resultats['tracks']['items']
 
-                meilleur_track = None
-                mots_cherches = set(morceau_cherche.split())
+                    meilleur_track = None
+                    mots_cherches = set(morceau_cherche.split())
 
-                for track in tracks:
-                    track_name = track['name'].lower()
-                    artist_name = track['artists'][0]['name'].lower()
+                    for track in tracks:
+                        track_name = track['name'].lower()
+                        artist_name = track['artists'][0]['name'].lower()
 
-                    if any(mot in track_name or mot in artist_name for mot in mots_cherches):
-                        meilleur_track = track
-                        break
+                        if any(mot in track_name or mot in artist_name for mot in mots_cherches):
+                            meilleur_track = track
+                            break
 
-                if meilleur_track:
-                    track_uri = meilleur_track['uri']
-                    track_name = meilleur_track['name']
-                    artist_name = meilleur_track['artists'][0]['name']
+                    if meilleur_track:
+                        track_uri = meilleur_track['uri']
+                        track_name = meilleur_track['name']
+                        artist_name = meilleur_track['artists'][0]['name']
 
-                    sp.add_to_queue(track_uri)
-                    print(f"Succès ! '{track_name}' de {artist_name} a été ajouté à la file d'attente.")
+                        sp.add_to_queue(track_uri)
+                        print(f"Succès ! '{track_name}' de {artist_name} a été ajouté à la file d'attente.")
+                    else:
+                        print(f"Désolé, je n'ai trouvé aucun résultat pertinent pour '{morceau_cherche}' sur Spotify.")
                 else:
-                    print(f"Désolé, je n'ai trouvé aucun résultat pertinent pour '{morceau_cherche}' sur Spotify.")
+                    print("Vous n'avez pas précisé le nom du morceau à ajouter !")
 
             # CAS 2 : Ajouter à la playlist ALL (en disant "old", "playlist" ou "liste") avec vérification des doublons
             elif "old" in commande or "playlist" in commande or "liste" in commande:
