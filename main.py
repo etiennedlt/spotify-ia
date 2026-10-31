@@ -44,31 +44,43 @@ while True:
 
             commande = texte.replace("coucou spotify", "").replace("coupe spotify", "").strip()
 
-            # CAS 1 : Vous voulez l'ajouter à la FILE D'ATTENTE (en disant "file")
-            if "file" in commande:
+            # CAS 1 : Ajouter à la FILE D'ATTENTE (recherche globale sur tout Spotify, tolérante aux approximations)
+            if "file" in commande or "fail" in commande:
                 morceau_cherche = (commande
                                    .replace("file", "")
+                                   .replace("fail", "")
                                    .replace("d'attente", "")
                                    .replace("ajoute", "")
                                    .replace("à", "")
                                    .strip())
 
-                print(f"Recherche pour la file d'attente : '{morceau_cherche}'")
+                print(f"Recherche globale sur Spotify pour la file d'attente : '{morceau_cherche}'")
 
-                resultats = sp.search(q=morceau_cherche, type='track', limit=1)
+                resultats = sp.search(q=morceau_cherche, type='track', limit=5)
                 tracks = resultats['tracks']['items']
 
-                if tracks:
-                    track_uri = tracks[0]['uri']
-                    track_name = tracks[0]['name']
-                    artist_name = tracks[0]['artists'][0]['name']
+                meilleur_track = None
+                mots_cherches = set(morceau_cherche.split())
+
+                for track in tracks:
+                    track_name = track['name'].lower()
+                    artist_name = track['artists'][0]['name'].lower()
+
+                    if any(mot in track_name or mot in artist_name for mot in mots_cherches):
+                        meilleur_track = track
+                        break
+
+                if meilleur_track:
+                    track_uri = meilleur_track['uri']
+                    track_name = meilleur_track['name']
+                    artist_name = meilleur_track['artists'][0]['name']
 
                     sp.add_to_queue(track_uri)
                     print(f"Succès ! '{track_name}' de {artist_name} a été ajouté à la file d'attente.")
                 else:
-                    print("Désolé, je n'ai pas trouvé cette chanson sur Spotify.")
+                    print(f"Désolé, je n'ai trouvé aucun résultat pertinent pour '{morceau_cherche}' sur Spotify.")
 
-            # CAS 2 : Vous voulez l'ajouter à la playlist ALL (en disant "old", "playlist" ou "liste")
+            # CAS 2 : Ajouter à la playlist ALL (en disant "old", "playlist" ou "liste") avec vérification des doublons
             elif "old" in commande or "playlist" in commande or "liste" in commande:
                 morceau_cherche = (commande
                                    .replace("playlist", "")
@@ -91,15 +103,24 @@ while True:
 
                     playlist_id = trouver_playlist_par_nom("all")
                     if playlist_id:
-                        sp.playlist_add_items(playlist_id, [track_uri])
-                        print(f"Succès ! '{track_name}' de {artist_name} a été ajouté à votre playlist 'all'.")
+                        # Récupérer les musiques de la playlist 'all' en évitant les éléments nuls
+                        playlist_tracks = sp.playlist_items(playlist_id, fields='items(track(uri))')
+                        existing_uris = [
+                            item['track']['uri']
+                            for item in playlist_tracks['items']
+                            if item and item.get('track') and 'uri' in item['track']
+                        ]
+
+                        # Vérifier si le morceau est déjà présent
+                        if track_uri in existing_uris:
+                            print(f"'{track_name}' de {artist_name} est déjà présent dans votre playlist 'all'.")
+                        else:
+                            sp.playlist_add_items(playlist_id, [track_uri])
+                            print(f"Succès ! '{track_name}' de {artist_name} a été ajouté à votre playlist 'all'.")
                     else:
                         print("Je n'ai pas trouvé la playlist 'all'.")
                 else:
                     print(f"Désolé, je n'ai pas trouvé la chanson '{morceau_cherche}' sur Spotify.")
-
-            else:
-                print("Commande non reconnue. Précisez 'file' ou 'old'.")
 
     except sr.UnknownValueError:
         pass
