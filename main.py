@@ -1,7 +1,6 @@
 import speech_recognition as sr
 from config import CLIENT_ID, CLIENT_SECRET, REDIRECT_URI
 
-# Import de toutes les fonctions depuis ton fichier fonctions.py
 from fonctions import (
     initialiser_spotify,
     lancer_morceau_specifique,
@@ -13,7 +12,7 @@ from fonctions import (
 # ==========================================
 # CONFIGURATIONS PRINCIPALES
 # ==========================================
-NOM_PLAYLIST_CIBLE = "All"  # Nom de la playlist principale pour la file d'attente
+NOM_PLAYLIST_CIBLE = "All"
 
 # --- 1. CONFIGURATION SPOTIFY ---
 sp = initialiser_spotify(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI)
@@ -51,7 +50,7 @@ while True:
                 continue
 
             # ==========================================
-            # 1. COMMANDE : LANCER UN TITRE SPÉCIFIQUE (DIRECT)
+            # 1. COMMANDE : LANCER UN TITRE SPÉCIFIQUE
             # ==========================================
             if any(mot in commande for mot in ["joue", "mets", "chanson", "morceau", "titre"]) and "playlist" not in commande and "liste" not in commande:
                 lancer_morceau_specifique(sp, commande)

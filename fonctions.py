@@ -7,13 +7,23 @@ from thefuzz import process, fuzz
 
 
 def initialiser_spotify(client_id, client_secret, redirect_uri):
-    """Initialise et retourne l'objet Spotify authentifié."""
-    return spotipy.Spotify(auth_manager=SpotifyOAuth(
+    # Ajout des scopes indispensables pour les playlists et la lecture
+    scope = (
+        "user-modify-playback-state "
+        "user-read-playback-state "
+        "user-read-currently-playing "
+        "playlist-read-private "
+        "playlist-read-collaborative"
+    )
+
+    auth_manager = SpotifyOAuth(
         client_id=client_id,
         client_secret=client_secret,
         redirect_uri=redirect_uri,
-        scope="user-modify-playback-state user-read-playback-state playlist-read-private playlist-read-collaborative playlist-modify-private playlist-modify-public"
-    ))
+        scope=scope,
+        cache_path=".cache"  # Important pour stocker le token
+    )
+    return spotipy.Spotify(auth_manager=auth_manager)
 
 
 def afficher_popup(titre, message, duree=10):
@@ -45,7 +55,7 @@ def trouver_playlist_par_nom(sp, nom_cherche):
 
 
 def lancer_morceau_specifique(sp, commande):
-    """Lance un morceau immédiatement en remplaçant la lecture en cours (aucun ajout en file d'attente)."""
+    """Lance un morceau immédiatement en utilisant son album comme contexte (100% fiable en arrière-plan)."""
     morceau_demande = (commande
                        .replace("joue", "")
                        .replace("mets", "")
@@ -59,7 +69,8 @@ def lancer_morceau_specifique(sp, commande):
     if morceau_demande:
         print(f"Recherche et lancement immédiat de : '{morceau_demande}'")
         try:
-            resultats = sp.search(q=morceau_demande, type='track', limit=1)
+            q_clean = morceau_demande.replace('é', 'e').replace('è', 'e').replace('ê', 'e')
+            resultats = sp.search(q=q_clean, type='track', limit=1)
             tracks = resultats.get('tracks', {}).get('items', [])
 
             if tracks:
@@ -67,10 +78,7 @@ def lancer_morceau_specifique(sp, commande):
                 track_uri = meilleur_track['uri']
                 track_name = meilleur_track['name']
                 artist_name = meilleur_track['artists'][0]['name']
-
-                # 1. On réveille l'application Spotify sur Windows pour l'activer
-                os.system(f"start {track_uri}")
-                time.sleep(1.0)
+                album_uri = meilleur_track['album']['uri']  # Récupération de l'album de la piste
 
                 # Récupération de l'appareil actif (PC)
                 devices = sp.devices()
@@ -83,11 +91,23 @@ def lancer_morceau_specifique(sp, commande):
                     if not device_id:
                         device_id = devices['devices'][0]['id']
 
-                # Lancement direct et forcé
                 if device_id:
-                    sp.start_playback(device_id=device_id, uris=[track_uri])
+                    try:
+                        sp.transfer_playback(device_id=device_id, force_play=True)
+                    except Exception:
+                        pass
+
+                    # Lancement via le contexte de l'album + offset sur la piste exacte
+                    sp.start_playback(
+                        device_id=device_id,
+                        context_uri=album_uri,
+                        offset={"uri": track_uri}
+                    )
                 else:
-                    sp.start_playback(uris=[track_uri])
+                    sp.start_playback(
+                        context_uri=album_uri,
+                        offset={"uri": track_uri}
+                    )
 
                 msg = f"Lecture immédiate : '{track_name}' de {artist_name}"
                 print(f"▶️ {msg}")
@@ -100,8 +120,8 @@ def lancer_morceau_specifique(sp, commande):
     else:
         print("Tu n'as pas précisé le titre de la chanson !")
 
+
 def lancer_playlist(sp, commande):
-    """Gère la reconnaissance et le lancement d'une playlist."""
     playlists_disponibles = [
         "wintersong", "cold winter", "All", "My world",
         "Chlii2", "Honez", "Summer song", "instru",
@@ -134,8 +154,6 @@ def lancer_playlist(sp, commande):
             if playlist_id:
                 try:
                     playlist_uri = f"spotify:playlist:{playlist_id}"
-                    os.system(f"start {playlist_uri}")
-                    time.sleep(1.5)
 
                     devices = sp.devices()
                     device_id = None
@@ -148,6 +166,10 @@ def lancer_playlist(sp, commande):
                             device_id = devices['devices'][0]['id']
 
                     if device_id:
+                        try:
+                            sp.transfer_playback(device_id=device_id, force_play=True)
+                        except Exception:
+                            pass
                         sp.start_playback(device_id=device_id, context_uri=playlist_uri)
                     else:
                         sp.start_playback(context_uri=playlist_uri)
@@ -156,8 +178,8 @@ def lancer_playlist(sp, commande):
                     print(f"▶️ {msg}")
                     afficher_popup("Playlist Spotify 🎵", msg)
                 except Exception as e:
-                    print(f"Note (ouverture simple effectuée) : {e}")
-                    afficher_popup("Playlist Spotify 🎵", f"Ouverture de '{vrai_nom_playlist}'")
+                    print(f"Erreur lors du lancement de la playlist : {e}")
+                    afficher_popup("Playlist Spotify 🎵", "Erreur de lancement")
             else:
                 print(f"⚠️ La playlist '{vrai_nom_playlist}' n'a pas été trouvée sur ton compte.")
         else:
@@ -167,7 +189,7 @@ def lancer_playlist(sp, commande):
 
 
 def ajouter_file_attente(sp, commande, playlist_cible):
-    """Ajoute un morceau à la file d'attente (recherche dans la playlist cible ou globale)."""
+    """Ajoute un morceau à la file d'attente."""
     morceau_cherche = (commande
                        .replace("file", "")
                        .replace("fail", "")
