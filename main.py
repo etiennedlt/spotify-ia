@@ -82,60 +82,55 @@ while True:
                 continue
 
             # ==========================================
-            # COMMANDES DE CONTRÔLE DE LECTURE & VOLUME
+            # 1. COMMANDE : LANCER UN TITRE SPÉCIFIQUE (FILE D'ATTENTE + SAUT DIRECT)
             # ==========================================
-            mots_passe = ["passe", "suivant", "next", "pas", "passer", "paps"]
-            mots_comeback = ["come-back", "come back", "comback", "précédent", "retour", "reviens", "recule"]
-            mots_restart = ["restart", "reste", "recommence", "depuis le début", "début", "reset", "redémarre",
-                            "restar"]
-            mots_pause = ["pause", "stop", "arrête", "interromps"]
-            mots_play = ["play", "lance", "mets", "joue", "marche", "reprends"]
+            if any(mot in commande for mot in ["joue", "mets", "chanson", "morceau",
+                                               "titre"]) and "playlist" not in commande and "liste" not in commande:
+                morceau_demande = (commande
+                                   .replace("joue", "")
+                                   .replace("mets", "")
+                                   .replace("la", "")
+                                   .replace("le", "")
+                                   .replace("chanson", "")
+                                   .replace("morceau", "")
+                                   .replace("titre", "")
+                                   .strip())
 
-            if any(mot in commande for mot in mots_passe):
-                sp.next_track()
-                print("⏭️ Morceau suivant !")
-                afficher_popup("Spotify Controls", "⏭️ Morceau suivant !")
+                if morceau_demande:
+                    print(f"Recherche du morceau : '{morceau_demande}'")
+                    try:
+                        resultats = sp.search(q=morceau_demande, type='track', limit=1)
+                        tracks = resultats['tracks']['items']
 
-            elif any(mot in commande for mot in mots_comeback):
-                sp.previous_track()
-                print("⏮️ Morceau précédent !")
-                afficher_popup("Spotify Controls", "⏮️ Morceau précédent !")
+                        if tracks:
+                            meilleur_track = tracks[0]
+                            track_uri = meilleur_track['uri']
+                            track_name = meilleur_track['name']
+                            artist_name = meilleur_track['artists'][0]['name']
 
-            elif any(mot in commande for mot in mots_restart):
-                sp.seek_track(0)
-                print("🔄 Morceau redémarré au début !")
-                afficher_popup("Spotify Controls", "🔄 Morceau redémarré au début !")
+                            # 1. On réveille/ouvre l'application sur le morceau via Windows
+                            os.system(f"start {track_uri}")
+                            time.sleep(1.0)
 
-            elif any(mot in commande for mot in mots_pause):
-                sp.pause_playback()
-                print("⏸️ Lecture en pause.")
-                afficher_popup("Spotify Controls", "⏸️ Musique en pause")
+                            # 2. On l'ajoute à la file d'attente et on saute dessus immédiatement pour lancer la lecture
+                            sp.add_to_queue(track_uri)
+                            time.sleep(0.5)
+                            sp.next_track()
 
-            elif any(mot in commande for mot in
-                     mots_play) and "playlist" not in commande and "liste" not in commande and not any(
-                    m in commande for m in ["chanson", "morceau", "titre"]):
-                sp.start_playback()
-                print("▶️ Lecture relancée !")
-                afficher_popup("Spotify Controls", "▶️ Lecture relancée !")
-
-            elif "volume" in commande or "son" in commande:
-                mots_cmd = commande.split()
-                volume_cible = None
-                for mot in mots_cmd:
-                    if mot.isdigit():
-                        volume_cible = int(mot)
-                        break
-
-                if volume_cible is not None:
-                    volume_cible = max(0, min(100, volume_cible))
-                    sp.volume(volume_cible)
-                    print(f"🔊 Volume réglé à {volume_cible}%")
-                    afficher_popup("Spotify Volume", f"🔊 Volume : {volume_cible}%")
+                            msg = f"Lecture de '{track_name}' par {artist_name} !"
+                            print(f"▶️ {msg}")
+                            afficher_popup("Spotify 🎵", msg)
+                        else:
+                            print(f"⚠️ Aucun titre trouvé pour '{morceau_demande}'.")
+                            afficher_popup("Erreur Spotify", "Titre introuvable")
+                    except Exception as e:
+                        print(f"Erreur lors de la recherche : {e}")
                 else:
-                    print("⚠️ Précisez un niveau de volume en pourcentage (ex: volume 50).")
+                    print("Tu n'as pas précisé le titre de la chanson !")
+                continue
 
             # ==========================================
-            # COMMANDE : LANCER UNE PLAYLIST
+            # 2. COMMANDE : LANCER UNE PLAYLIST
             # ==========================================
             elif "playlist" in commande or "liste" in commande:
                 playlists_disponibles = [
@@ -200,50 +195,67 @@ while True:
                         print(f"⚠️ Aucun rapport avec tes playlists pour '{nom_demande}'.")
                 else:
                     print("Tu n'as pas précisé le nom de la playlist !")
+                continue
 
             # ==========================================
-            # COMMANDE : LANCER UN TITRE SPÉCIFIQUE
+            # 3. COMMANDES DE CONTRÔLE DE LECTURE & VOLUME
             # ==========================================
-            elif any(mot in commande for mot in ["joue", "mets", "chanson", "morceau",
-                                                 "titre"]) and "playlist" not in commande and "liste" not in commande:
-                morceau_demande = (commande
-                                   .replace("joue", "")
-                                   .replace("mets", "")
-                                   .replace("la", "")
-                                   .replace("le", "")
-                                   .replace("chanson", "")
-                                   .replace("morceau", "")
-                                   .replace("titre", "")
-                                   .strip())
+            mots_passe = ["passe", "suivant", "next", "pas", "passer", "paps"]
+            mots_comeback = ["come-back", "come back", "comback", "précédent", "retour", "reviens", "recule"]
+            mots_restart = ["restart", "reste", "recommence", "depuis le début", "début", "reset", "redémarre",
+                            "restar"]
+            mots_pause = ["pause", "stop", "arrête", "interromps"]
+            mots_play = ["play", "lance", "joue", "marche", "reprends"]
 
-                if morceau_demande:
-                    print(f"Recherche du morceau : '{morceau_demande}'")
-                    try:
-                        resultats = sp.search(q=morceau_demande, type='track', limit=1)
-                        tracks = resultats['tracks']['items']
+            if any(mot in commande for mot in mots_passe):
+                sp.next_track()
+                print("⏭️ Morceau suivant !")
+                afficher_popup("Spotify Controls", "⏭️ Morceau suivant !")
+                continue
 
-                        if tracks:
-                            meilleur_track = tracks[0]
-                            track_uri = meilleur_track['uri']
-                            track_name = meilleur_track['name']
-                            artist_name = meilleur_track['artists'][0]['name']
+            elif any(mot in commande for mot in mots_comeback):
+                sp.previous_track()
+                print("⏮️ Morceau précédent !")
+                afficher_popup("Spotify Controls", "⏮️ Morceau précédent !")
+                continue
 
-                            # On lance directement via l'URI Windows, sans passer par l'API restrictive
-                            os.system(f"start {track_uri}")
+            elif any(mot in commande for mot in mots_restart):
+                sp.seek_track(0)
+                print("🔄 Morceau redémarré au début !")
+                afficher_popup("Spotify Controls", "🔄 Morceau redémarré au début !")
+                continue
 
-                            msg = f"Lecture de '{track_name}' par {artist_name} !"
-                            print(f"▶️ {msg}")
-                            afficher_popup("Spotify 🎵", msg)
-                        else:
-                            print(f"⚠️ Aucun titre trouvé pour '{morceau_demande}'.")
-                            afficher_popup("Erreur Spotify", "Titre introuvable")
-                    except Exception as e:
-                        print(f"Erreur lors de la recherche : {e}")
+            elif any(mot in commande for mot in mots_pause):
+                sp.pause_playback()
+                print("⏸️ Lecture en pause.")
+                afficher_popup("Spotify Controls", "⏸️ Musique en pause")
+                continue
+
+            elif any(mot in commande for mot in mots_play):
+                sp.start_playback()
+                print("▶️ Lecture relancée !")
+                afficher_popup("Spotify Controls", "▶️ Lecture relancée !")
+                continue
+
+            elif "volume" in commande or "son" in commande:
+                mots_cmd = commande.split()
+                volume_cible = None
+                for mot in mots_cmd:
+                    if mot.isdigit():
+                        volume_cible = int(mot)
+                        break
+
+                if volume_cible is not None:
+                    volume_cible = max(0, min(100, volume_cible))
+                    sp.volume(volume_cible)
+                    print(f"🔊 Volume réglé à {volume_cible}%")
+                    afficher_popup("Spotify Volume", f"🔊 Volume : {volume_cible}%")
                 else:
-                    print("Tu n'as pas précisé le titre de la chanson !")
+                    print("⚠️ Précisez un niveau de volume en pourcentage (ex: volume 50).")
+                continue
 
             # ==========================================
-            # CAS : AJOUTER À LA FILE D'ATTENTE
+            # 4. CAS : AJOUTER À LA FILE D'ATTENTE
             # ==========================================
             elif any(mot in commande for mot in ["file", "fail", "fil", "five", "feel", "fille"]):
                 morceau_cherche = (commande
@@ -300,7 +312,7 @@ while True:
                         tracks = resultats['tracks']['items']
 
                         if tracks:
-                            meilleur_track = tracks['0'] if isinstance(tracks, dict) else tracks[0]
+                            meilleur_track = tracks[0]
                             track_uri = meilleur_track['uri']
                             track_name = meilleur_track['name']
                             artist_name = meilleur_track['artists'][0]['name']
