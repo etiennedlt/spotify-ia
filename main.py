@@ -44,7 +44,7 @@ while True:
 
             commande = texte.replace("coucou spotify", "").replace("coupe spotify", "").strip()
 
-            # CAS 1 : Ajouter à la FILE D'ATTENTE (recherche globale sur tout Spotify, tolérante aux approximations)
+            # CAS 1 : Ajouter à la FILE D'ATTENTE (en disant "file" ou "fail" ou "fil")
             if "file" in commande or "fail" or "fil" in commande:
                 morceau_cherche = (commande
                                    .replace("file", "")
@@ -54,33 +54,63 @@ while True:
                                    .replace("à", "")
                                    .strip())
 
-                # On vérifie qu'un morceau a bien été demandé
                 if morceau_cherche:
-                    print(f"Recherche globale sur Spotify pour la file d'attente : '{morceau_cherche}'")
+                    print(f"Recherche prioritaire dans la playlist 'all' pour : '{morceau_cherche}'")
 
-                    resultats = sp.search(q=morceau_cherche, type='track', limit=5)
-                    tracks = resultats['tracks']['items']
-
+                    playlist_id = trouver_playlist_par_nom("all")
                     meilleur_track = None
-                    mots_cherches = set(morceau_cherche.split())
 
-                    for track in tracks:
-                        track_name = track['name'].lower()
-                        artist_name = track['artists'][0]['name'].lower()
+                    # Étape 1 : On cherche d'abord dans la playlist 'all'
+                    if playlist_id:
+                        playlist_tracks = sp.playlist_items(playlist_id, fields='items(track(name, artists, uri))')
+                        mots_cherches = set(morceau_cherche.split())
 
-                        if any(mot in track_name or mot in artist_name for mot in mots_cherches):
-                            meilleur_track = track
-                            break
+                        for item in playlist_tracks['items']:
+                            track = item.get('track')
+                            if track:
+                                track_name = track['name'].lower()
+                                artist_name = track['artists'][0]['name'].lower()
 
+                                # Vérification de ressemblance avec les mots prononcés
+                                if any(mot in track_name or mot in artist_name for mot in mots_cherches):
+                                    meilleur_track = track
+                                    break
+
+                    # Étape 2 : Si trouvé dans 'all', on l'ajoute
                     if meilleur_track:
                         track_uri = meilleur_track['uri']
                         track_name = meilleur_track['name']
                         artist_name = meilleur_track['artists'][0]['name']
 
                         sp.add_to_queue(track_uri)
-                        print(f"Succès ! '{track_name}' de {artist_name} a été ajouté à la file d'attente.")
+                        print(
+                            f"Succès ! '{track_name}' de {artist_name} (trouvé dans 'all') a été ajouté à la file d'attente.")
+
+                    # Étape 3 : Sinon, on fait une recherche globale sur tout Spotify en secours
                     else:
-                        print(f"Désolé, je n'ai trouvé aucun résultat pertinent pour '{morceau_cherche}' sur Spotify.")
+                        print(f"Non trouvé dans 'all'. Recherche globale sur Spotify pour : '{morceau_cherche}'")
+                        resultats = sp.search(q=morceau_cherche, type='track', limit=5)
+                        tracks = resultats['tracks']['items']
+
+                        for track in tracks:
+                            track_name = track['name'].lower()
+                            artist_name = track['artists'][0]['name'].lower()
+                            mots_cherches = set(morceau_cherche.split())
+
+                            if any(mot in track_name or mot in artist_name for mot in mots_cherches):
+                                meilleur_track = track
+                                break
+
+                        if meilleur_track:
+                            track_uri = meilleur_track['uri']
+                            track_name = meilleur_track['name']
+                            artist_name = meilleur_track['artists'][0]['name']
+
+                            sp.add_to_queue(track_uri)
+                            print(
+                                f"Succès ! '{track_name}' de {artist_name} (recherche globale) a été ajouté à la file d'attente.")
+                        else:
+                            print(f"Désolé, je n'ai trouvé aucun résultat pertinent pour '{morceau_cherche}'.")
                 else:
                     print("Vous n'avez pas précisé le nom du morceau à ajouter !")
 
