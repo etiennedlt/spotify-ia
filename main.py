@@ -65,8 +65,8 @@ while True:
                     commande = commande.replace(faux_mot, vrai_mot)
                     print(f"Correction phonétique appliquée : '{faux_mot}' -> '{vrai_mot}'")
 
-            # CAS 1 : Ajouter à la FILE D'ATTENTE (en disant "file", "fail" ou "fil")
-            if "file" in commande or "fail" in commande or "fil" in commande:
+            # CAS 1 : Ajouter à la FILE D'ATTENTE (en disant "file", "fail" ou "fil"ou "fivee)
+            if "file" in commande or "fail" in commande or "fil" or "five" in commande:
                 morceau_cherche = (commande
                                    .replace("file", "")
                                    .replace("fail", "")
@@ -135,8 +135,8 @@ while True:
                 else:
                     print("Vous n'avez pas précisé le nom du morceau à ajouter !")
 
-            # CAS 2 : Ajouter à la playlist ALL (en disant "old", "playlist" ou "liste" ou "five")
-            elif "old" in commande or "playlist" in commande or "liste" or "five" in commande:
+            # CAS 2 : Ajouter à la playlist ALL (en disant "old", "playlist" ou "liste")
+            elif "old" in commande or "playlist" in commande or "liste" in commande:
                 morceau_cherche = (commande
                                    .replace("playlist", "")
                                    .replace("liste", "")
