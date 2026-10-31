@@ -51,13 +51,13 @@ while True:
 
             # --- DICTIONNAIRE D'ASSOCIATION POUR HOUDI ---
             corrections_houdi = {
-                "opi": "op houdi",
-                "op": "op houdi",
-                "houdy": "houdi",
-                "oudi": "houdi",
-                "audi": "houdi",
-                "haut dit": "houdi",
-                "ou dit": "houdi"
+                " opi": "op houdi",
+                " op": "op houdi",
+                " houdy": "houdi",
+                " oudi": "houdi",
+                " audi": "houdi",
+                " haut dit": "houdi",
+                " ou dit": "houdi"
             }
 
             for faux_mot, vrai_mot in corrections_houdi.items():
