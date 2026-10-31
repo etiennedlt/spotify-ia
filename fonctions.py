@@ -45,7 +45,7 @@ def trouver_playlist_par_nom(sp, nom_cherche):
 
 
 def lancer_morceau_specifique(sp, commande):
-    """Recherche et lance un morceau immédiatement (simule un clic depuis la recherche Spotify)."""
+    """Lance un morceau immédiatement en remplaçant la lecture en cours (aucun ajout en file d'attente)."""
     morceau_demande = (commande
                        .replace("joue", "")
                        .replace("mets", "")
@@ -57,10 +57,10 @@ def lancer_morceau_specifique(sp, commande):
                        .strip())
 
     if morceau_demande:
-        print(f"Recherche du morceau : '{morceau_demande}'")
+        print(f"Recherche et lancement immédiat de : '{morceau_demande}'")
         try:
             resultats = sp.search(q=morceau_demande, type='track', limit=1)
-            tracks = resultats['tracks']['items']
+            tracks = resultats.get('tracks', {}).get('items', [])
 
             if tracks:
                 meilleur_track = tracks[0]
@@ -68,7 +68,11 @@ def lancer_morceau_specifique(sp, commande):
                 track_name = meilleur_track['name']
                 artist_name = meilleur_track['artists'][0]['name']
 
-                # 1. Récupérer l'appareil actif (ton PC)
+                # 1. On réveille l'application Spotify sur Windows pour l'activer
+                os.system(f"start {track_uri}")
+                time.sleep(1.0)
+
+                # Récupération de l'appareil actif (PC)
                 devices = sp.devices()
                 device_id = None
                 if devices and devices.get('devices'):
@@ -79,20 +83,20 @@ def lancer_morceau_specifique(sp, commande):
                     if not device_id:
                         device_id = devices['devices'][0]['id']
 
-                # 2. Lancer le morceau directement (remplace le contexte en cours instantanément)
+                # Lancement direct et forcé
                 if device_id:
                     sp.start_playback(device_id=device_id, uris=[track_uri])
                 else:
                     sp.start_playback(uris=[track_uri])
 
-                msg = f"Lecture immédiate de '{track_name}' par {artist_name} !"
+                msg = f"Lecture immédiate : '{track_name}' de {artist_name}"
                 print(f"▶️ {msg}")
                 afficher_popup("Spotify 🎵", msg)
             else:
                 print(f"⚠️ Aucun titre trouvé pour '{morceau_demande}'.")
                 afficher_popup("Erreur Spotify", "Titre introuvable")
         except Exception as e:
-            print(f"Erreur lors de la recherche ou du lancement : {e}")
+            print(f"Erreur lors du lancement direct : {e}")
     else:
         print("Tu n'as pas précisé le titre de la chanson !")
 
