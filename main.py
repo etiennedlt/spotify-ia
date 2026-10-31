@@ -1,15 +1,15 @@
+import os
 import speech_recognition as sr
 from config import CLIENT_ID, CLIENT_SECRET, REDIRECT_URI
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from thefuzz import process, fuzz
 from plyer import notification
-import os
 
 # ==========================================
 # CONFIGURATIONS PRINCIPALES (MODIFIABLES ICI)
 # ==========================================
-NOM_PLAYLIST_CIBLE = "All"  # Nom de la playlist principale
+NOM_PLAYLIST_CIBLE = "All"  # Nom de la playlist principale pour la file d'attente
 DUREE_POPUP = 10  # Temps d'affichage du pop-up en secondes
 
 # --- 1. CONFIGURATION SPOTIFY ---
@@ -26,7 +26,7 @@ microphone = sr.Microphone()
 
 
 def afficher_popup(titre, message):
-    """Affiche une notification pop-up sur le bureau en bas à gauche."""
+    """Affiche une notification pop-up sur le bureau."""
     try:
         notification.notify(
             title=titre,
@@ -61,7 +61,8 @@ while True:
     try:
         with microphone as source:
             print("\nJ'écoute...")
-            audio = recognizer.listen(source, timeout=None, phrase_time_limit=20)
+            # Limite de temps fixée à 15 secondes pour plus de confort
+            audio = recognizer.listen(source, timeout=None, phrase_time_limit=15)
 
         texte = recognizer.recognize_google(audio, language="fr-FR").lower()
         print(f"Vous avez dit : {texte}")
@@ -85,10 +86,10 @@ while True:
             # ==========================================
             mots_passe = ["passe", "suivant", "next", "pas", "passer", "paps"]
             mots_comeback = ["come-back", "come back", "comback", "précédent", "retour", "reviens", "recule"]
-            mots_pause = ["pause", "stop", "arrête", "interromps"]
-            mots_play = ["play", "lance", "mets", "joue", "marche", "reprends"]
             mots_restart = ["restart", "reste", "recommence", "depuis le début", "début", "reset", "redémarre",
                             "restar"]
+            mots_pause = ["pause", "stop", "arrête", "interromps"]
+            mots_play = ["play", "lance", "mets", "joue", "marche", "reprends"]
 
             if any(mot in commande for mot in mots_passe):
                 sp.next_track()
@@ -114,14 +115,13 @@ while True:
                 afficher_popup("Spotify Controls", "⏸️ Musique en pause")
                 continue
 
-            elif any(mot in commande for mot in mots_play):
+            elif any(mot in commande for mot in mots_play) and "playlist" not in commande and "liste" not in commande:
                 sp.start_playback()
                 print("▶️ Lecture relancée !")
                 afficher_popup("Spotify Controls", "▶️ Lecture relancée !")
                 continue
 
             elif "volume" in commande or "son" in commande:
-                # Extraction basique d'un nombre (ex: "volume 50" -> 50)
                 mots_cmd = commande.split()
                 volume_cible = None
                 for mot in mots_cmd:
@@ -130,7 +130,7 @@ while True:
                         break
 
                 if volume_cible is not None:
-                    volume_cible = max(0, min(100, volume_cible))  # Entre 0 et 100
+                    volume_cible = max(0, min(100, volume_cible))
                     sp.volume(volume_cible)
                     print(f"🔊 Volume réglé à {volume_cible}%")
                     afficher_popup("Spotify Volume", f"🔊 Volume : {volume_cible}%")
@@ -138,95 +138,60 @@ while True:
                     print("⚠️ Précisez un niveau de volume en pourcentage (ex: volume 50).")
                 continue
 
-
+            # ==========================================
+            # COMMANDE : LANCER UNE PLAYLIST (VIA WINDOWS - SANS ERREUR 403)
+            # ==========================================
             elif "playlist" in commande or "liste" in commande:
-
                 playlists_disponibles = [
-
                     "wintersong", "cold winter", "All", "My world",
-
                     "Chlii2", "Honez", "Summer song", "instru",
-
                     "Rock", "Grosse prod", "chill vibe", "Kiff 2", "Just kiff"
-
                 ]
 
                 nom_demande = (commande
-
                                .replace("playlist", "")
-
                                .replace("liste", "")
-
                                .replace("lance", "")
-
                                .replace("mets", "")
-
                                .replace("la", "")
-
                                .replace("de", "")
-
                                .strip())
 
                 if nom_demande:
-
                     playlists_lower = {p.lower(): p for p in playlists_disponibles}
-
                     meilleur_match_lower, score = process.extractOne(
-
                         nom_demande,
-
                         playlists_lower.keys(),
-
                         scorer=fuzz.partial_ratio
-
                     )
 
                     if score >= 40:
-
                         vrai_nom_playlist = playlists_lower[meilleur_match_lower]
-
                         print(f"Playlist reconnue : '{vrai_nom_playlist}' (score : {score})")
 
                         playlist_id = trouver_playlist_par_nom(vrai_nom_playlist)
 
                         if playlist_id:
-
                             try:
-
-                                # On lance directement via l'URI Windows, sans passer par l'API restrictive
-
                                 playlist_uri = f"spotify:playlist:{playlist_id}"
-
                                 os.system(f"start {playlist_uri}")
 
                                 msg = f"Lancement de la playlist '{vrai_nom_playlist}' !"
-
                                 print(f"▶️ {msg}")
-
                                 afficher_popup("Playlist Spotify 🎵", msg)
-
                             except Exception as e:
-
                                 print(f"Erreur : {e}")
-
                                 afficher_popup("Erreur Spotify", "Impossible de lancer la playlist")
-
                         else:
-
                             print(f"⚠️ La playlist '{vrai_nom_playlist}' n'a pas été trouvée sur ton compte.")
-
                     else:
-
                         print(f"⚠️ Aucun rapport avec tes playlists pour '{nom_demande}'.")
-
                 else:
-
                     print("Tu n'as pas précisé le nom de la playlist !")
-
                 continue
 
             # ==========================================
-            # CAS : Ajouter à la file d'attente
+            # CAS : Ajouter à la file d'attente (Morceau individuel)
             # ==========================================
             elif any(mot in commande for mot in ["file", "fail", "fil", "five", "feel", "fille"]):
                 morceau_cherche = (commande
@@ -235,11 +200,8 @@ while True:
                                    .replace("fille", "")
                                    .replace("feel", "")
                                    .replace("fil", "")
-                                   .replace("five", "")
-                                   .replace("d'attente", "")
-                                   .replace("ajoute", "")
-                                   .replace("à", "")
                                    .strip())
+
                 if morceau_cherche:
                     print(f"Recherche dans '{NOM_PLAYLIST_CIBLE}' pour : '{morceau_cherche}'")
                     playlist_id = trouver_playlist_par_nom(NOM_PLAYLIST_CIBLE)
@@ -263,6 +225,7 @@ while True:
                                 dict_choix.keys(),
                                 scorer=fuzz.partial_ratio
                             )
+
                             if score >= 70:
                                 meilleur_track = dict_choix[resultat]
 
@@ -270,6 +233,7 @@ while True:
                         track_uri = meilleur_track['uri']
                         track_name = meilleur_track['name']
                         artist_name = meilleur_track['artists'][0]['name']
+
                         sp.add_to_queue(track_uri)
                         msg = f"'{track_name}' de {artist_name} ajouté à la file d'attente."
                         print(f"Succès ! {msg}")
@@ -292,11 +256,11 @@ while True:
                         else:
                             print(f"Désolé, aucun résultat pour '{morceau_cherche}'.")
                 else:
-                    print("Vous n'avez pas précisé le morceau à ajouter !")
+                    print("Tu n'as pas précisé le morceau à ajouter !")
 
-    except sr.UnknownValueError:
-        pass
-    except sr.RequestError as e:
+            except sr.UnknownValueError:
+            pass
+        except sr.RequestError as e:
         print(f"Erreur avec le service de reconnaissance vocale : {e}")
     except Exception as e:
         print(f"Une erreur est survenue : {e}")
