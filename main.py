@@ -22,7 +22,7 @@ print("Assistant vocal prêt. Dites 'coucou spotify' suivi de votre commande..."
 def trouver_playlist_par_nom(nom_cherche):
     playlists = sp.current_user_playlists()
     for playlist in playlists['items']:
-        if nom_cherche.lower() in playlist['name'].lower():
+        if nom_cherche.lower() == playlist['name'].lower():
             return playlist['id']
     return None
 
@@ -44,20 +44,37 @@ while True:
 
             commande = texte.replace("coucou spotify", "").replace("coupe spotify", "").strip()
 
-            # Si vous avez prononcé uniquement le mot de réveil
             if not commande:
                 print("Je vous écoute... (veuillez donner votre commande)")
                 continue
 
+            # ==========================================
+            # NOUVELLES COMMANDES DE CONTRÔLE DE LECTURE
+            # ==========================================
+            if "passe" in commande or "suivant" in commande or "next" in commande:
+                sp.next_track()
+                print("⏭️ Morceau suivant !")
+                continue
+
+            elif "come-back" in commande or "come back" in commande or "précédent" in commande or "retour" in commande:
+                sp.previous_track()
+                print("⏮️ Morceau précédent !")
+                continue
+
+            elif "restart" in commande or "recommence" in commande or "depuis le début" in commande:
+                sp.seek_track(0)
+                print("🔄 Morceau redémarré au début !")
+                continue
+
             # --- DICTIONNAIRE D'ASSOCIATION POUR HOUDI ---
             corrections_houdi = {
-                " opi": "op houdi",
-                " op": "op houdi",
-                " houdy": "houdi",
-                " oudi": "houdi",
-                " audi": "houdi",
-                " haut dit": "houdi",
-                " ou dit": "houdi"
+                "opi": "op houdi",
+                "op": "op houdi",
+                "houdy": "houdi",
+                "oudi": "houdi",
+                "audi": "houdi",
+                "haut dit": "houdi",
+                "ou dit": "houdi"
             }
 
             for faux_mot, vrai_mot in corrections_houdi.items():
@@ -65,24 +82,26 @@ while True:
                     commande = commande.replace(faux_mot, vrai_mot)
                     print(f"Correction phonétique appliquée : '{faux_mot}' -> '{vrai_mot}'")
 
-            # CAS 1 : Ajouter à la FILE D'ATTENTE (en disant "file", "fail" ou "fil"ou "fivee)
-            if "file" in commande or "fail" in commande or "fil" or "five" in commande:
+            # ==========================================
+            # CAS 1 : Ajouter à la FILE D'ATTENTE
+            # ==========================================
+            if "file" in commande or "fail" in commande or "fil" in commande or "five" or "feel" in commande:
                 morceau_cherche = (commande
                                    .replace("file", "")
                                    .replace("fail", "")
                                    .replace("fil", "")
+                                   .replace("five", "")
                                    .replace("d'attente", "")
                                    .replace("ajoute", "")
                                    .replace("à", "")
                                    .strip())
 
                 if morceau_cherche:
-                    print(f"Recherche prioritaire (approximative) dans 'all' pour : '{morceau_cherche}'")
+                    print(f"Recherche prioritaire (approximative) dans 'All' pour : '{morceau_cherche}'")
 
-                    playlist_id = trouver_playlist_par_nom("all")
+                    playlist_id = trouver_playlist_par_nom("All")
                     meilleur_track = None
 
-                    # Étape 1 : Recherche approximative dans la playlist 'all'
                     if playlist_id:
                         playlist_tracks = sp.playlist_items(playlist_id, fields='items(track(name, artists, uri))')
                         pistes_playlist = []
@@ -105,19 +124,15 @@ while True:
                                 meilleur_track = dict_choix[resultat]
                                 print(f"Correspondance approximative trouvée ({score}%) : '{resultat}'")
 
-                    # Étape 2 : Si trouvé dans 'all', on l'ajoute à la file d'attente
                     if meilleur_track:
                         track_uri = meilleur_track['uri']
                         track_name = meilleur_track['name']
                         artist_name = meilleur_track['artists'][0]['name']
 
                         sp.add_to_queue(track_uri)
-                        print(
-                            f"Succès ! '{track_name}' de {artist_name} (trouvé dans 'all') a été ajouté à la file d'attente.")
-
-                    # Étape 3 : Sinon, recherche globale sur Spotify en secours
+                        print(f"Succès ! '{track_name}' de {artist_name} (trouvé dans 'All') a été ajouté à la file d'attente.")
                     else:
-                        print(f"Non trouvé dans 'all'. Recherche globale sur Spotify pour : '{morceau_cherche}'")
+                        print(f"Non trouvé dans 'All'. Recherche globale sur Spotify pour : '{morceau_cherche}'")
                         resultats = sp.search(q=morceau_cherche, type='track', limit=10)
                         tracks = resultats['tracks']['items']
 
@@ -128,14 +143,15 @@ while True:
                             artist_name = meilleur_track['artists'][0]['name']
 
                             sp.add_to_queue(track_uri)
-                            print(
-                                f"Succès ! '{track_name}' de {artist_name} (recherche globale) a été ajouté à la file d'attente.")
+                            print(f"Succès ! '{track_name}' de {artist_name} (recherche globale) a été ajouté à la file d'attente.")
                         else:
                             print(f"Désolé, je n'ai trouvé aucun résultat pour '{morceau_cherche}'.")
                 else:
-                    print("Vous n'avez pas précisé le nom du morceau à ajouter !")
+                    print("Vous n'avez pas précisé le morceau à ajouter !")
 
-            # CAS 2 : Ajouter à la playlist ALL (en disant "old", "playlist" ou "liste")
+            # ==========================================
+            # CAS 2 : Ajouter à la playlist ALL
+            # ==========================================
             elif "old" in commande or "playlist" in commande or "liste" in commande:
                 morceau_cherche = (commande
                                    .replace("playlist", "")
@@ -147,7 +163,7 @@ while True:
                                    .strip())
 
                 if morceau_cherche:
-                    print(f"Recherche pour la playlist 'all' : '{morceau_cherche}'")
+                    print(f"Recherche pour la playlist 'All' : '{morceau_cherche}'")
 
                     resultats = sp.search(q=morceau_cherche, type='track', limit=1)
                     tracks = resultats['tracks']['items']
@@ -157,7 +173,7 @@ while True:
                         track_name = tracks[0]['name']
                         artist_name = tracks[0]['artists'][0]['name']
 
-                        playlist_id = trouver_playlist_par_nom("all")
+                        playlist_id = trouver_playlist_par_nom("All")
                         if playlist_id:
                             playlist_tracks = sp.playlist_items(playlist_id, fields='items(track(uri))')
                             existing_uris = [
@@ -167,16 +183,16 @@ while True:
                             ]
 
                             if track_uri in existing_uris:
-                                print(f"'{track_name}' de {artist_name} est déjà présent dans votre playlist 'all'.")
+                                print(f"'{track_name}' de {artist_name} est déjà présent dans votre playlist 'All'.")
                             else:
                                 sp.playlist_add_items(playlist_id, [track_uri])
-                                print(f"Succès ! '{track_name}' de {artist_name} a été ajouté à votre playlist 'all'.")
+                                print(f"Succès ! '{track_name}' de {artist_name} a été ajouté à votre playlist 'All'.")
                         else:
-                            print("Je n'ai pas trouvé la playlist 'all'.")
+                            print("Je n'ai pas trouvé la playlist 'All'.")
                     else:
                         print(f"Désolé, je n'ai pas trouvé la chanson '{morceau_cherche}' sur Spotify.")
                 else:
-                    print("Vous n'avez pas précisé le nom du morceau à ajouter à la playlist !")
+                    print("Vous n'avez pas précisé le morceau à ajouter à la playlist !")
 
     except sr.UnknownValueError:
         pass
