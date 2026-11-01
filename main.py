@@ -1,6 +1,8 @@
+import time
 import speech_recognition as sr
 from config import CLIENT_ID, CLIENT_SECRET, REDIRECT_URI
 
+# Import de toutes les fonctions depuis ton fichier fonctions.py
 from fonctions import (
     initialiser_spotify,
     lancer_morceau_specifique,
@@ -12,7 +14,7 @@ from fonctions import (
 # ==========================================
 # CONFIGURATIONS PRINCIPALES
 # ==========================================
-NOM_PLAYLIST_CIBLE = "All"
+NOM_PLAYLIST_CIBLE = "All"  # Nom de la playlist principale pour la file d'attente
 
 # --- 1. CONFIGURATION SPOTIFY ---
 sp = initialiser_spotify(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI)
@@ -50,7 +52,7 @@ while True:
                 continue
 
             # ==========================================
-            # 1. COMMANDE : LANCER UN TITRE SPÉCIFIQUE
+            # 1. COMMANDE : LANCER UN TITRE SPÉCIFIQUE (DIRECT)
             # ==========================================
             if any(mot in commande for mot in ["joue", "mets", "chanson", "morceau", "titre"]) and "playlist" not in commande and "liste" not in commande:
                 lancer_morceau_specifique(sp, commande)
@@ -126,8 +128,11 @@ while True:
                 ajouter_file_attente(sp, commande, NOM_PLAYLIST_CIBLE)
 
     except sr.UnknownValueError:
+        time.sleep(0.5)  # Pause pour soulager le processeur en cas de silence
         pass
     except sr.RequestError as e:
         print(f"Erreur avec le service de reconnaissance vocale : {e}")
+        time.sleep(2)  # Pause plus longue si le réseau décroche
     except Exception as e:
         print(f"Une erreur est survenue : {e}")
+        time.sleep(1)
