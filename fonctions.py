@@ -26,7 +26,7 @@ def initialiser_spotify(client_id, client_secret, redirect_uri):
     return spotipy.Spotify(auth_manager=auth_manager)
 
 
-def afficher_popup(titre, message, duree=10):
+def afficher_popup(titre, message, duree=5):
     """Affiche une notification pop-up sur le bureau."""
     try:
         notification.notify(
