@@ -1,3 +1,4 @@
+import time
 import speech_recognition as sr
 from config import CLIENT_ID, CLIENT_SECRET, REDIRECT_URI
 
@@ -50,10 +51,10 @@ while True:
                 continue
 
             # ==========================================
-            # 1. COMMANDE : LANCER UN TITRE SPÉCIFIQUE
+            # 1. CAS : AJOUTER À LA FILE D'ATTENTE (Prioritaire)
             # ==========================================
-            if any(mot in commande for mot in ["joue", "mets", "chanson", "morceau", "titre"]) and "playlist" not in commande and "liste" not in commande:
-                lancer_morceau_specifique(sp, commande)
+            if any(mot in commande for mot in ["file", "fail", "fil", "five", "feel", "fille", "feels", "ajoute"]):
+                ajouter_file_attente(sp, commande, NOM_PLAYLIST_CIBLE)
                 continue
 
             # ==========================================
@@ -64,7 +65,14 @@ while True:
                 continue
 
             # ==========================================
-            # 3. COMMANDES DE CONTRÔLE DE LECTURE & VOLUME
+            # 3. COMMANDE : LANCER UN TITRE SPÉCIFIQUE
+            # ==========================================
+            elif any(mot in commande for mot in ["joue", "mets", "chanson", "morceau", "titre"]):
+                lancer_morceau_specifique(sp, commande)
+                continue
+
+            # ==========================================
+            # 4. COMMANDES DE CONTRÔLE DE LECTURE & VOLUME
             # ==========================================
             mots_passe = ["passe", "suivant", "next", "pas", "passer", "paps"]
             mots_comeback = ["come-back", "come back", "comback", "précédent", "retour", "reviens", "recule"]
@@ -72,37 +80,54 @@ while True:
             mots_pause = ["pause", "stop", "arrête", "interromps"]
             mots_play = ["play", "lance", "joue", "marche", "reprends"]
 
+            # Fonction utilitaire sécurisée pour cibler le PC avant chaque commande de contrôle
+            def executer_commande_spotify(action_fonction, message_succes, popup_texte):
+                try:
+                    devices = sp.devices()
+                    device_id = None
+                    if devices and devices.get('devices'):
+                        for d in devices['devices']:
+                            if d['type'].lower() == 'computer':
+                                device_id = d['id']
+                                break
+                        if not device_id:
+                            device_id = devices['devices'][0]['id']
+
+                    if device_id:
+                        try:
+                            sp.transfer_playback(device_id=device_id, force_play=True)
+                        except Exception:
+                            pass
+                        action_fonction(device_id=device_id)
+                    else:
+                        action_fonction()
+
+                    print(message_succes)
+                    afficher_popup("Spotify Controls", popup_texte)
+                except Exception as e:
+                    print(f"Erreur de contrôle Spotify : {e}")
+
             if any(mot in commande for mot in mots_passe):
-                sp.next_track()
-                print("⏭️ Morceau suivant !")
-                afficher_popup("Spotify Controls", "⏭️ Morceau suivant !")
+                executer_commande_spotify(lambda device_id=None: sp.next_track(device_id=device_id), "⏭️ Morceau suivant !", "⏭️ Morceau suivant !")
                 continue
 
             elif any(mot in commande for mot in mots_comeback):
-                sp.previous_track()
-                print("⏮️ Morceau précédent !")
-                afficher_popup("Spotify Controls", "⏮️ Morceau précédent !")
+                executer_commande_spotify(lambda device_id=None: sp.previous_track(device_id=device_id), "⏮️ Morceau précédent !", "⏮️ Morceau précédent !")
                 continue
 
             elif any(mot in commande for mot in mots_restart):
-                sp.seek_track(0)
-                print("🔄 Morceau redémarré au début !")
-                afficher_popup("Spotify Controls", "🔄 Morceau redémarré au début !")
+                executer_commande_spotify(lambda device_id=None: sp.seek_track(0, device_id=device_id), "🔄 Morceau redémarré au début !", "🔄 Morceau redémarré au début !")
                 continue
 
             elif any(mot in commande for mot in mots_pause):
-                sp.pause_playback()
-                print("⏸️ Lecture en pause.")
-                afficher_popup("Spotify Controls", "⏸️ Musique en pause")
+                executer_commande_spotify(lambda device_id=None: sp.pause_playback(device_id=device_id), "⏸️ Lecture en pause.", "⏸️ Musique en pause")
                 continue
 
             elif any(mot in commande for mot in mots_play):
-                sp.start_playback()
-                print("▶️ Lecture relancée !")
-                afficher_popup("Spotify Controls", "▶️ Lecture relancée !")
+                executer_commande_spotify(lambda device_id=None: sp.start_playback(device_id=device_id), "▶️ Lecture relancée !", "▶️ Lecture relancée !")
                 continue
 
-            elif "volume" in commande or "son" in commande:
+            elif "volume" in commande or any(mot == "son" for mot in commande.split()):
                 mots_cmd = commande.split()
                 volume_cible = None
                 for mot in mots_cmd:
@@ -119,15 +144,12 @@ while True:
                     print("⚠️ Précisez un niveau de volume en pourcentage (ex: volume 50).")
                 continue
 
-            # ==========================================
-            # 4. CAS : AJOUTER À LA FILE D'ATTENTE
-            # ==========================================
-            elif any(mot in commande for mot in ["file", "fail", "fil", "five", "feel", "fille"]):
-                ajouter_file_attente(sp, commande, NOM_PLAYLIST_CIBLE)
-
     except sr.UnknownValueError:
+        time.sleep(0.5)  # Soulage le CPU en cas de silence
         pass
     except sr.RequestError as e:
         print(f"Erreur avec le service de reconnaissance vocale : {e}")
+        time.sleep(2)
     except Exception as e:
         print(f"Une erreur est survenue : {e}")
+        time.sleep(1)
