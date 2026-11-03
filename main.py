@@ -74,13 +74,13 @@ while True:
             # ==========================================
             # 4. COMMANDES DE CONTRÔLE DE LECTURE & VOLUME
             # ==========================================
-            mots_passe = ["passe", "suivant", "next", "pas", "passer", "paps"]
+            mots_passe = ["passe", "suivant", "next", "pas", "passer", "paps", "nex"]
             mots_comeback = ["come-back", "come back", "comback", "précédent", "retour", "reviens", "recule"]
             mots_restart = ["restart", "reste", "recommence", "depuis le début", "début", "reset", "redémarre", "restar"]
             mots_pause = ["pause", "stop", "arrête", "interromps"]
             mots_play = ["play", "lance", "joue", "marche", "reprends"]
 
-            # Fonction utilitaire sécurisée pour cibler le PC avant chaque commande de contrôle
+            # Fonction utilitaire sécurisée : active le PC puis exécute l'action sans argument risqué
             def executer_commande_spotify(action_fonction, message_succes, popup_texte):
                 try:
                     devices = sp.devices()
@@ -95,12 +95,12 @@ while True:
 
                     if device_id:
                         try:
-                            sp.transfer_playback(device_id=device_id, force_play=True)
+                            sp.transfer_playback(device_id=device_id, force_play=False)
+                            time.sleep(0.2)
                         except Exception:
                             pass
-                        action_fonction(device_id=device_id)
-                    else:
-                        action_fonction()
+
+                    action_fonction()
 
                     print(message_succes)
                     afficher_popup("Spotify Controls", popup_texte)
@@ -108,23 +108,23 @@ while True:
                     print(f"Erreur de contrôle Spotify : {e}")
 
             if any(mot in commande for mot in mots_passe):
-                executer_commande_spotify(lambda device_id=None: sp.next_track(device_id=device_id), "⏭️ Morceau suivant !", "⏭️ Morceau suivant !")
+                executer_commande_spotify(lambda: sp.next_track(), "⏭️ Morceau suivant !", "⏭️ Morceau suivant !")
                 continue
 
             elif any(mot in commande for mot in mots_comeback):
-                executer_commande_spotify(lambda device_id=None: sp.previous_track(device_id=device_id), "⏮️ Morceau précédent !", "⏮️ Morceau précédent !")
+                executer_commande_spotify(lambda: sp.previous_track(), "⏮️ Morceau précédent !", "⏮️ Morceau précédent !")
                 continue
 
             elif any(mot in commande for mot in mots_restart):
-                executer_commande_spotify(lambda device_id=None: sp.seek_track(0, device_id=device_id), "🔄 Morceau redémarré au début !", "🔄 Morceau redémarré au début !")
+                executer_commande_spotify(lambda: sp.seek_track(0), "🔄 Morceau redémarré au début !", "🔄 Morceau redémarré au début !")
                 continue
 
             elif any(mot in commande for mot in mots_pause):
-                executer_commande_spotify(lambda device_id=None: sp.pause_playback(device_id=device_id), "⏸️ Lecture en pause.", "⏸️ Musique en pause")
+                executer_commande_spotify(lambda: sp.pause_playback(), "⏸️ Lecture en pause.", "⏸️ Musique en pause")
                 continue
 
             elif any(mot in commande for mot in mots_play):
-                executer_commande_spotify(lambda device_id=None: sp.start_playback(device_id=device_id), "▶️ Lecture relancée !", "▶️ Lecture relancée !")
+                executer_commande_spotify(lambda: sp.start_playback(), "▶️ Lecture relancée !", "▶️ Lecture relancée !")
                 continue
 
             elif "volume" in commande or any(mot == "son" for mot in commande.split()):
@@ -145,7 +145,7 @@ while True:
                 continue
 
     except sr.UnknownValueError:
-        time.sleep(0.5)  # Soulage le CPU en cas de silence
+        time.sleep(0.5)
         pass
     except sr.RequestError as e:
         print(f"Erreur avec le service de reconnaissance vocale : {e}")

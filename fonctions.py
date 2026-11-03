@@ -7,7 +7,6 @@ from thefuzz import process, fuzz
 
 
 def initialiser_spotify(client_id, client_secret, redirect_uri):
-    # Ajout des scopes indispensables pour les playlists et la lecture
     scope = (
         "user-modify-playback-state "
         "user-read-playback-state "
@@ -21,12 +20,12 @@ def initialiser_spotify(client_id, client_secret, redirect_uri):
         client_secret=client_secret,
         redirect_uri=redirect_uri,
         scope=scope,
-        cache_path=".cache"  # Important pour stocker le token
+        cache_path=".cache"
     )
     return spotipy.Spotify(auth_manager=auth_manager)
 
 
-def afficher_popup(titre, message, duree=5):
+def afficher_popup(titre, message, duree=10):
     """Affiche une notification pop-up sur le bureau."""
     try:
         notification.notify(
@@ -78,9 +77,8 @@ def lancer_morceau_specifique(sp, commande):
                 track_uri = meilleur_track['uri']
                 track_name = meilleur_track['name']
                 artist_name = meilleur_track['artists'][0]['name']
-                album_uri = meilleur_track['album']['uri']  # Récupération de l'album de la piste
+                album_uri = meilleur_track['album']['uri']
 
-                # Récupération de l'appareil actif (PC)
                 devices = sp.devices()
                 device_id = None
                 if devices and devices.get('devices'):
@@ -97,7 +95,6 @@ def lancer_morceau_specifique(sp, commande):
                     except Exception:
                         pass
 
-                    # Lancement via le contexte de l'album + offset sur la piste exacte
                     sp.start_playback(
                         device_id=device_id,
                         context_uri=album_uri,
@@ -124,7 +121,7 @@ def lancer_morceau_specifique(sp, commande):
 def lancer_playlist(sp, commande):
     playlists_disponibles = [
         "wintersong", "cold winter", "All", "My world",
-        "Chlii2", "Honez", "Summer song", "instru",
+        "Chill2", "Honey", "Summer song", "instru",
         "Rock", "Grosse prod", "chill vibe", "Kiff 2", "Just kiff"
     ]
 
